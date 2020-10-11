@@ -110,7 +110,7 @@ public class MineOnlineBroadcast extends Plugin {
 
             String json = jsonObject.toString();
 
-            URL url = new URL("http://mineonline.codie.gg/api/servers");
+            URL url = new URL("https://mineonline.codie.gg/api/servers");
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestMethod("POST");
