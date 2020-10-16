@@ -176,7 +176,7 @@ public class MineOnlineBroadcast extends Plugin {
                             int users = etc.getServer().getPlayerList().size();
                             int maxUsers = propertiesFile.getInt("max-players", 20);
                             String name = propertiesFile.getString("server-name", "Minecraft Server");
-                            boolean onlineMode = true; // Assume Authme is in use for now.
+                            boolean onlineMode = propertiesFile.getBoolean("online-mode", true);
                             //String md5; handled on enable
                             boolean whitelisted = propertiesFile.getBoolean("whitelist", false);
                             String[] whitelistUsers = new String[0];
