@@ -135,8 +135,8 @@ public class MineOnlineBroadcast extends Plugin {
                             PropertiesFile propertiesFile = new PropertiesFile("server.properties");
                             propertiesFile.load();
 
-                            String ip = propertiesFile.getString("server-ip", null);
-                            String port = propertiesFile.getString("server-port", "25565");
+                            String ip = propertiesFile.getString("serverlist-ip", propertiesFile.getString("server-ip", propertiesFile.getString("ip", null)));
+                            String port = propertiesFile.getString("serverlist-port", propertiesFile.getString("server-port", propertiesFile.getString("port", "25565")));
                             int users = etc.getServer().getPlayerList().size();
                             int maxUsers = propertiesFile.getInt("max-players", 20);
                             String name = propertiesFile.getString("server-name", "Minecraft Server");
