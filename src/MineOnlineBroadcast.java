@@ -1,11 +1,17 @@
+import codie.mineonline.ProxyThread;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.ServerSocket;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.LinkedList;
+import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -16,6 +22,26 @@ public class MineOnlineBroadcast extends Plugin {
     MineOnlineBroadcastListener listener;
     Logger log;
     String md5;
+    ProxyThread proxyThread;
+
+    public void launchProxy() throws IOException {
+        ServerSocket serverSocket = new ServerSocket(0);
+        proxyThread = new ProxyThread(serverSocket);
+        proxyThread.start();
+
+        System.out.println("Enabling online-mode fix.");
+
+        System.setProperty("http.proxyHost", serverSocket.getInetAddress().getHostAddress());
+        System.setProperty("http.proxyPort", "" + serverSocket.getLocalPort());
+        System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1");
+    }
+
+    public void stopProxy() {
+        if (proxyThread != null) {
+            proxyThread.stop();
+            proxyThread = null;
+        }
+    }
 
     public static byte[] createChecksum(String filename) throws Exception {
         InputStream fis =  new FileInputStream(filename);
@@ -45,7 +71,7 @@ public class MineOnlineBroadcast extends Plugin {
         return result.toUpperCase();
     }
 
-    public static String listServer(
+    public static void listServer(
             String ip,
             String port,
             int users,
@@ -59,20 +85,28 @@ public class MineOnlineBroadcast extends Plugin {
         HttpURLConnection connection = null;
 
         try {
-            JSONObject jsonObject = new JSONObject();
-            if (ip != null)
-                jsonObject.put("ip", ip);
-            jsonObject.put("port", port);
-            if (users > -1)
-                jsonObject.put("users", users);
-            jsonObject.put("max", maxUsers);
-            jsonObject.put("name", name);
-            jsonObject.put("onlinemode", onlineMode);
-            jsonObject.put("md5", md5);
-            jsonObject.put("whitelisted", whitelisted);
-            jsonObject.put("players", playerNames);
+            URLClassLoader classLoader = new URLClassLoader(new URL[] { MineOnlineBroadcast.class.getProtectionDomain().getCodeSource().getLocation() });
 
-            String json = jsonObject.toString();
+            Class jsonObjectClass = classLoader.loadClass("org.json.JSONObject");
+
+            Constructor jsonObjectConstructor = jsonObjectClass.getConstructor();
+            Method jsonObjectPut = jsonObjectClass.getMethod("put", String.class, Object.class);
+            Method jsonObjectToString = jsonObjectClass.getMethod("toString");
+
+            Object jsonObject = jsonObjectConstructor.newInstance();
+            if (ip != null)
+                jsonObjectPut.invoke(jsonObject, "ip", ip);
+            jsonObjectPut.invoke(jsonObject, "port", port);
+            if (users > -1)
+                jsonObjectPut.invoke(jsonObject, "users", users);
+            jsonObjectPut.invoke(jsonObject, "max", maxUsers);
+            jsonObjectPut.invoke(jsonObject, "name", name);
+            jsonObjectPut.invoke(jsonObject, "onlinemode", onlineMode);
+            jsonObjectPut.invoke(jsonObject, "md5", md5);
+            jsonObjectPut.invoke(jsonObject, "whitelisted", whitelisted);
+            jsonObjectPut.invoke(jsonObject, "players", playerNames);
+
+            String json = (String)jsonObjectToString.invoke(jsonObject);
 
             URL url = new URL("https://mineonline.codie.gg/api/servers");
             connection = (HttpURLConnection) url.openConnection();
@@ -95,13 +129,9 @@ public class MineOnlineBroadcast extends Plugin {
                 response.append('\r');
             }
             rd.close();
-
-            JSONObject resObject = new JSONObject(response.toString());
-            return resObject.has("uuid") ? resObject.getString("uuid") : null;
         } catch (Exception e) {
 
             e.printStackTrace();
-            return null;
         } finally {
 
             if (connection != null)
@@ -134,6 +164,10 @@ public class MineOnlineBroadcast extends Plugin {
                         try {
                             PropertiesFile propertiesFile = new PropertiesFile("server.properties");
                             propertiesFile.load();
+
+                            boolean isPublic = propertiesFile.getBoolean("public", true);
+                            if(!isPublic)
+                                return;
 
                             String ip = propertiesFile.getString("serverlist-ip", propertiesFile.getString("server-ip", propertiesFile.getString("ip", null)));
                             String port = propertiesFile.getString("serverlist-port", propertiesFile.getString("server-port", propertiesFile.getString("port", "25565")));
@@ -175,6 +209,16 @@ public class MineOnlineBroadcast extends Plugin {
         this.register(PluginLoader.Hook.DISCONNECT);
         this.register(PluginLoader.Hook.LOGIN);
         this.register(PluginLoader.Hook.KICK);
+        try {
+            PropertiesFile propertiesFile = new PropertiesFile("server.properties");
+            propertiesFile.load();
+            boolean onlineMode = propertiesFile.getBoolean("online-mode", true);
+
+            if (onlineMode)
+                launchProxy();
+        } catch (Exception ex) {
+            log.warning("Failed to enable online-mode fix. Authentication may fail.");
+        }
     }
 
     private void register(PluginLoader.Hook hook, PluginListener.Priority priority) {
@@ -187,5 +231,6 @@ public class MineOnlineBroadcast extends Plugin {
 
     public void disable() {
         broadcastThread.interrupt();
+        stopProxy();
     }
 }
