@@ -1,4 +1,4 @@
-package codie.utils;
+package gg.codie.utils;
 
 public class ArrayUtils {
     public static byte[] toPrimitives(Byte[] oBytes)

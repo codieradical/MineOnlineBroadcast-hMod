@@ -1,4 +1,4 @@
-package codie.minecraft.api;
+package gg.codie.minecraft.api;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;

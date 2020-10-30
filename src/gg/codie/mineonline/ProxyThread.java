@@ -1,4 +1,4 @@
-package codie.mineonline;
+package gg.codie.mineonline;
 
 import gg.codie.minecraft.api.SessionServer;
 import gg.codie.utils.ArrayUtils;

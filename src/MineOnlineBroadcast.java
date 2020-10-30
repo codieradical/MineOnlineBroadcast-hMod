@@ -1,5 +1,4 @@
-import codie.mineonline.ProxyThread;
-import org.json.JSONObject;
+import gg.codie.mineonline.ProxyThread;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
@@ -10,8 +9,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.LinkedList;
-import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -108,7 +105,7 @@ public class MineOnlineBroadcast extends Plugin {
 
             String json = (String)jsonObjectToString.invoke(jsonObject);
 
-            URL url = new URL("https://mineonline.codie.gg/api/servers");
+            URL url = new URL("https://mineonline.gg.codie.gg/api/servers");
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestMethod("POST");
