@@ -9,6 +9,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -159,21 +160,21 @@ public class MineOnlineBroadcast extends Plugin {
                     if (System.currentTimeMillis() - MineOnlineBroadcast.lastPing > 45000) {
                         lastPing = System.currentTimeMillis();
                         try {
-                            PropertiesFile propertiesFile = new PropertiesFile("server.properties");
-                            propertiesFile.load();
+                            Properties propertiesFile = new Properties();
+                            propertiesFile.load(new FileInputStream(new File("server.properties")));
 
-                            boolean isPublic = propertiesFile.getBoolean("public", true);
+                            boolean isPublic = propertiesFile.getProperty("public", "true").equals("true");
                             if(!isPublic)
                                 return;
 
-                            String ip = propertiesFile.getString("serverlist-ip", propertiesFile.getString("server-ip", propertiesFile.getString("ip", null)));
-                            String port = propertiesFile.getString("serverlist-port", propertiesFile.getString("server-port", propertiesFile.getString("port", "25565")));
+                            String ip = propertiesFile.getProperty("serverlist-ip", propertiesFile.getProperty("server-ip", propertiesFile.getProperty("ip", null)));
+                            String port = propertiesFile.getProperty("serverlist-port", propertiesFile.getProperty("server-port", propertiesFile.getProperty("port", "25565")));
                             int users = etc.getServer().getPlayerList().size();
-                            int maxUsers = propertiesFile.getInt("max-players", 20);
-                            String name = propertiesFile.getString("server-name", "Minecraft Server");
-                            boolean onlineMode = propertiesFile.getBoolean("online-mode", true);
-                            //String md5; handled on enable
-                            boolean whitelisted = propertiesFile.getBoolean("whitelist", false);
+                            int maxUsers = Integer.parseInt(propertiesFile.getProperty("max-players", "20"));
+                            String name = propertiesFile.getProperty("server-name", "Minecraft Server");
+                            boolean onlineMode = propertiesFile.getProperty("online-mode", "true").equals("true");
+                            //String md5 = propertiesFile.getProperty("version-md5", "");
+                            boolean whitelisted = propertiesFile.getProperty("whitelist", "false").equals("true");
 
                             String[] playerNames = etc.getServer().getPlayerList().stream().map(player -> player.getName()).collect(Collectors.toList()).toArray(new String[users]);
 
@@ -207,9 +208,9 @@ public class MineOnlineBroadcast extends Plugin {
         this.register(PluginLoader.Hook.LOGIN);
         this.register(PluginLoader.Hook.KICK);
         try {
-            PropertiesFile propertiesFile = new PropertiesFile("server.properties");
-            propertiesFile.load();
-            boolean onlineMode = propertiesFile.getBoolean("online-mode", true);
+            Properties propertiesFile = new Properties();
+            propertiesFile.load(new FileInputStream(new File("server.properties")));
+            boolean onlineMode = propertiesFile.getProperty("online-mode", "true").equals("true");
 
             if (onlineMode)
                 launchProxy();
