@@ -10,5 +10,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="json" level="project" />
     <orderEntry type="library" name="hMod" level="project" />
+    <orderEntry type="library" exported="" name="discord" level="project" />
   </component>
 </module>

@@ -1,4 +1,11 @@
-import gg.codie.mineonline.ProxyThread;
+import gg.codie.common.input.EColorCodeColor;
+import gg.codie.minecraft.server.MinecraftColorCodeProvider;
+import gg.codie.mineonline.discord.DiscordChatBridge;
+import gg.codie.mineonline.discord.IMessageRecievedListener;
+import gg.codie.mineonline.discord.IShutdownListener;
+import gg.codie.mineonline.discord.MinotarAvatarProvider;
+import gg.codie.mineonline.plugin.ProxyThread;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
@@ -11,9 +18,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class MineOnlineBroadcast extends Plugin {
+public class MineOnlineBroadcastHMod extends Plugin {
     private static String NAME = "MineOnlineBroadcast";
     Thread broadcastThread;
     public static long lastPing;
@@ -21,6 +30,10 @@ public class MineOnlineBroadcast extends Plugin {
     Logger log;
     String md5;
     ProxyThread proxyThread;
+    DiscordChatBridge discord;
+    PluginRegisteredListener registeredListener;
+    boolean initialized;
+    String serverName = "Minecraft Server";
 
     public void launchProxy() throws IOException {
         ServerSocket serverSocket = new ServerSocket(0);
@@ -83,7 +96,7 @@ public class MineOnlineBroadcast extends Plugin {
         HttpURLConnection connection = null;
 
         try {
-            URLClassLoader classLoader = new URLClassLoader(new URL[] { MineOnlineBroadcast.class.getProtectionDomain().getCodeSource().getLocation() });
+            URLClassLoader classLoader = new URLClassLoader(new URL[] { MineOnlineBroadcastHMod.class.getProtectionDomain().getCodeSource().getLocation() });
 
             Class jsonObjectClass = classLoader.loadClass("org.json.JSONObject");
 
@@ -157,7 +170,7 @@ public class MineOnlineBroadcast extends Plugin {
             @Override
             public void run() {
                 while(true) {
-                    if (System.currentTimeMillis() - MineOnlineBroadcast.lastPing > 45000) {
+                    if (System.currentTimeMillis() - MineOnlineBroadcastHMod.lastPing > 45000) {
                         lastPing = System.currentTimeMillis();
                         try {
                             Properties propertiesFile = new Properties();
@@ -202,13 +215,16 @@ public class MineOnlineBroadcast extends Plugin {
     }
 
     public void initialize() {
+        if(initialized)
+            return;
+
         this.log = Logger.getLogger("Minecraft");
-        this.listener = new MineOnlineBroadcastListener(this);
-        this.register(PluginLoader.Hook.DISCONNECT);
-        this.register(PluginLoader.Hook.LOGIN);
-        this.register(PluginLoader.Hook.KICK);
+
+        MinecraftColorCodeProvider colorCodeProvider = new MinecraftColorCodeProvider();
+
+        Properties propertiesFile = new Properties();
+
         try {
-            Properties propertiesFile = new Properties();
             propertiesFile.load(new FileInputStream(new File("server.properties")));
             boolean onlineMode = propertiesFile.getProperty("online-mode", "true").equals("true");
 
@@ -217,10 +233,91 @@ public class MineOnlineBroadcast extends Plugin {
         } catch (Exception ex) {
             log.warning("Failed to enable online-mode fix. Authentication may fail.");
         }
+
+        try {
+            propertiesFile.load(new FileInputStream(new File("server.properties")));
+            String discordToken = propertiesFile.getProperty("discord-token", null);
+            String discordChannelID = propertiesFile.getProperty("discord-channel", null);
+            String discordWebhookURL = propertiesFile.getProperty("discord-webhook-url", null);
+            serverName = propertiesFile.getProperty("server-name", serverName);
+
+
+            if (discordToken != null && discordChannelID != null) { // Create the discord bot if token and channel are present
+                discord = new DiscordChatBridge(new MinotarAvatarProvider(), discordChannelID, discordToken, discordWebhookURL, new IMessageRecievedListener() {
+                    @Override
+                    public void onMessageRecieved(MessageReceivedEvent event) {
+                        StringBuilder sb = new StringBuilder();
+                        String message = event.getMessage().getContentStripped();
+
+                        message = message.replace("\n", "") // Make emojis pretty
+                                .replace(("\uD83D\uDE41"), ":)")
+                                .replace(("\uD83D\uDE26"), ":(")
+                                .replace(("\uD83D\uDE04"), ":D")
+                                .replace(("\u2764"), "<3");
+
+                        for (int i = 0; i < message.length(); i++) {
+                            char c = message.charAt(i);
+                            if ((int) c > 31 && (int) c < 128) {
+                                sb.append(c);
+                            }
+                        }
+
+                        if (event.getMessage().getContentStripped().startsWith("\n"))
+                            return;
+
+                        String saneName = event.getAuthor().getName();
+                        String saneMessage = sb.toString();
+
+                        if(saneMessage.trim().isEmpty())
+                            return;
+
+                        Pattern trailingWhite = Pattern.compile(colorCodeProvider.getColorCode(EColorCodeColor.White) + "\\s{0,}$");
+                        Matcher whiteMatcher = trailingWhite.matcher(saneMessage);
+
+                        if (whiteMatcher.find()) { // Prevent a crash in classic where if the message ends with this all connected clients crash
+                            saneMessage = saneMessage.substring(0, saneMessage.length() - whiteMatcher.group().length());
+                        }
+
+                        if (saneMessage.length() > 256) // Truncate messages that are overly long
+                            saneMessage = saneMessage.substring(0, 256);
+
+                        message = (colorCodeProvider.getColorCode(EColorCodeColor.Blue) + saneName + ": " + colorCodeProvider.getColorCode(EColorCodeColor.White) + saneMessage);
+
+                        // remove double color codes that occur with resetting.
+                        message = message.replace(colorCodeProvider.getColorCode(EColorCodeColor.White) + colorCodeProvider.getPrefix(), colorCodeProvider.getPrefix());
+
+                        etc.getServer().messageAll(message);
+                    }
+                }, new IShutdownListener() {
+                    @Override
+                    public void onShutdown() {
+                        discord.sendDiscordMessage("", "Stopping " + serverName);
+                    }
+                });
+
+                discord.sendDiscordMessage("", "Starting " + serverName);
+            }
+        } catch (Exception ex) {
+            log.warning("Failed to start discord bridge.");
+            ex.printStackTrace();
+        }
+
+        this.listener = new MineOnlineBroadcastListener(discord);
+        this.register(PluginLoader.Hook.DISCONNECT);
+        this.register(PluginLoader.Hook.LOGIN);
+        this.register(PluginLoader.Hook.KICK);
+        this.register(PluginLoader.Hook.CHAT);
+
+        initialized = true;
     }
 
     private void register(PluginLoader.Hook hook, PluginListener.Priority priority) {
-        etc.getLoader().addListener(hook, this.listener, this, priority);
+        registeredListener = etc.getLoader().addListener(hook, this.listener, this, priority);
+    }
+
+    private void unregister() {
+        if(registeredListener != null)
+            etc.getLoader().removeListener(registeredListener);
     }
 
     private void register(PluginLoader.Hook hook) {
@@ -228,7 +325,14 @@ public class MineOnlineBroadcast extends Plugin {
     }
 
     public void disable() {
+        if(!initialized)
+            return;
+
+        unregister();
+        discord.shutdown();
         broadcastThread.interrupt();
         stopProxy();
+
+        initialized = false;
     }
 }
