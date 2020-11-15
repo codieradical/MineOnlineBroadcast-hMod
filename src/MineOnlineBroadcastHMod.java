@@ -91,7 +91,9 @@ public class MineOnlineBroadcastHMod extends Plugin {
             boolean onlineMode,
             String md5,
             boolean whitelisted,
-            String[] playerNames
+            String[] playerNames,
+            String motd,
+            boolean dontListPlayers
     ) {
         HttpURLConnection connection = null;
 
@@ -108,14 +110,17 @@ public class MineOnlineBroadcastHMod extends Plugin {
             if (ip != null)
                 jsonObjectPut.invoke(jsonObject, "ip", ip);
             jsonObjectPut.invoke(jsonObject, "port", port);
-            if (users > -1)
+            if (users > -1 && !dontListPlayers)
                 jsonObjectPut.invoke(jsonObject, "users", users);
             jsonObjectPut.invoke(jsonObject, "max", maxUsers);
             jsonObjectPut.invoke(jsonObject, "name", name);
             jsonObjectPut.invoke(jsonObject, "onlinemode", onlineMode);
             jsonObjectPut.invoke(jsonObject, "md5", md5);
             jsonObjectPut.invoke(jsonObject, "whitelisted", whitelisted);
-            jsonObjectPut.invoke(jsonObject, "players", playerNames);
+            if(!dontListPlayers)
+                jsonObjectPut.invoke(jsonObject, "players", playerNames);
+            jsonObjectPut.invoke(jsonObject, "motd", motd);
+            jsonObjectPut.invoke(jsonObject, "dontListPlayers", dontListPlayers);
 
             String json = (String)jsonObjectToString.invoke(jsonObject);
 
@@ -188,6 +193,8 @@ public class MineOnlineBroadcastHMod extends Plugin {
                             boolean onlineMode = propertiesFile.getProperty("online-mode", "true").equals("true");
                             //String md5 = propertiesFile.getProperty("version-md5", "");
                             boolean whitelisted = propertiesFile.getProperty("whitelist", "false").equals("true");
+                            boolean dontListPlayers = propertiesFile.getProperty("dont-list-players", "false").equals("true");
+                            String motd = propertiesFile.getProperty("motd", null);
 
                             String[] playerNames = etc.getServer().getPlayerList().stream().map(player -> player.getName()).collect(Collectors.toList()).toArray(new String[users]);
 
@@ -200,7 +207,9 @@ public class MineOnlineBroadcastHMod extends Plugin {
                                     onlineMode,
                                     md5,
                                     whitelisted,
-                                    playerNames
+                                    playerNames,
+                                    motd,
+                                    dontListPlayers
                             );
                         } catch (IOException ex) {
                             //ex.printStackTrace();
