@@ -194,7 +194,7 @@ public class MineOnlineBroadcastHMod extends Plugin {
                             //String md5 = propertiesFile.getProperty("version-md5", "");
                             boolean whitelisted = propertiesFile.getProperty("whitelist", "false").equals("true");
                             boolean dontListPlayers = propertiesFile.getProperty("dont-list-players", "false").equals("true");
-                            String motd = propertiesFile.getProperty("motd", null);
+                            String motd = propertiesFile.getProperty("serverlist-motd", null);
 
                             String[] playerNames = etc.getServer().getPlayerList().stream().map(player -> player.getName()).collect(Collectors.toList()).toArray(new String[users]);
 
