@@ -338,7 +338,8 @@ public class MineOnlineBroadcastHMod extends Plugin {
             return;
 
         unregister();
-        discord.shutdown();
+        if (discord != null)
+            discord.shutdown();
         broadcastThread.interrupt();
         stopProxy();
 
